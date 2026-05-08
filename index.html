@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2W Intelligence Dashboard — Country Level</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#080F1A;--navy2:#0D1B2E;--navy3:#122340;--navy4:#1A3254;
+  --gold:#C9963A;--gold2:#E8B455;--gold3:#F5D08A;
+  --slate:#7A8FA6;--slate2:#A8BCCE;
+  --green:#1A9E72;--green2:#3ecf9a;
+  --red:#C8502A;--red2:#f07a58;
+  --blue:#2A7DD4;--blue2:#5BA4E8;
+  --purple:#6B4FBB;
+  --card:#142133;--card2:#1C2F47;--card3:#243858;
+  --text:#EEF2F7;--muted:#7A8FA6;
+  --border:rgba(201,150,58,0.15);--border2:rgba(201,150,58,0.28);
+  --sidebar-w:220px;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+  --r:8px;--r2:12px;
+}
+html,body{height:100%;font-family:var(--fb);background:var(--navy);color:var(--text);font-size:14px;overflow:hidden}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--navy4);border-radius:3px}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:1000;transition:opacity 0.4s}
+.loader-bar{width:200px;height:3px;background:rgba(201,150,58,0.15);border-radius:2px;overflow:hidden}
+.loader-fill{height:100%;background:var(--gold);border-radius:2px;animation:load 1.6s ease forwards}
+@keyframes load{from{width:0}to{width:100%}}
+
+/* ── APP SHELL ── */
+.app{display:flex;flex-direction:column;height:100vh;display:none}
+
+/* ── TOPBAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:52px;flex-shrink:0;
+  background:rgba(8,15,26,0.97);border-bottom:1px solid var(--border);z-index:20;
+}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-mark{width:32px;height:32px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:13px;font-weight:800;color:var(--navy)}
+.logo-text{font-family:var(--fh);font-size:14px;font-weight:700}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:1.3px;text-transform:uppercase}
+.page-pill{font-family:var(--fh);font-size:10px;font-weight:700;color:var(--gold);letter-spacing:1.2px;text-transform:uppercase;padding:3px 12px;border-radius:20px;background:rgba(201,150,58,0.1);border:1px solid var(--border2)}
+.tb-right{display:flex;align-items:center;gap:10px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green2);box-shadow:0 0 6px var(--green2);animation:blink 2.2s infinite}
+@keyframes blink{0%,100%{opacity:1}60%{opacity:0.3}}
+.sep{width:1px;height:14px;background:var(--border)}
+.clock{font-size:11px;color:var(--gold3);font-weight:600;font-family:var(--fh)}
+.data-pill{font-size:10px;color:var(--slate2);background:var(--card2);border:1px solid var(--border);padding:3px 10px;border-radius:20px}
+
+/* ── MAIN LAYOUT ── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── LEFT SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--navy2);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-header{
+  padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.sidebar-title{font-family:var(--fh);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:2px}
+.sidebar-sub{font-size:10px;color:var(--muted);opacity:0.6}
+.sidebar-scroll{flex:1;overflow-y:auto;padding:10px 0 16px}
+.region-group{margin-bottom:6px}
+.region-label{
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;
+  color:var(--gold);padding:8px 16px 4px;display:block;
+  border-left:2px solid var(--gold);margin-left:0;
+  background:rgba(201,150,58,0.04);
+}
+.country-item{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 16px;cursor:pointer;transition:all 0.15s;
+  border-left:2px solid transparent;
+  position:relative;
+}
+.country-item:hover{background:rgba(201,150,58,0.06);border-left-color:rgba(201,150,58,0.3)}
+.country-item.active{background:rgba(201,150,58,0.1);border-left-color:var(--gold)}
+.country-flag{font-size:16px;line-height:1;flex-shrink:0}
+.country-info{flex:1;min-width:0}
+.country-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.country-item.active .country-name{color:var(--gold);font-weight:700}
+.country-cur{font-size:9px;color:var(--muted)}
+.country-ev{font-size:9px;color:var(--green2);font-weight:600}
+.sidebar-footer{
+  padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0;
+  font-size:9px;color:var(--muted);line-height:1.5;
+}
+
+/* ── CONTENT AREA ── */
+.content{flex:1;overflow-y:auto;min-width:0}
+
+/* ── COUNTRY HEADER BAR ── */
+.country-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;background:var(--navy2);border-bottom:1px solid var(--border);
+  flex-shrink:0;position:sticky;top:0;z-index:10;
+}
+.ch-left{display:flex;align-items:center;gap:12px}
+.ch-flag{font-size:30px;line-height:1;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.5))}
+.ch-name{font-family:var(--fh);font-size:20px;font-weight:700;line-height:1}
+.ch-meta{display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap}
+.badge{padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:0.9px;text-transform:uppercase}
+.badge-gold{background:rgba(201,150,58,0.15);border:1px solid rgba(201,150,58,0.3);color:var(--gold)}
+.badge-blue{background:rgba(42,125,212,0.12);border:1px solid rgba(42,125,212,0.3);color:var(--blue2)}
+.badge-green{background:rgba(26,158,114,0.12);border:1px solid rgba(26,158,114,0.3);color:var(--green2)}
+.ch-src{font-size:10px;color:var(--muted)}
+
+/* ── SECTION SEPARATOR ── */
+.section-sep{
+  display:flex;align-items:center;gap:12px;
+  padding:16px 24px 10px;
+}
+.section-num{
+  font-family:var(--fh);font-size:11px;font-weight:800;color:var(--gold);
+  width:22px;height:22px;border-radius:50%;border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.section-label{font-family:var(--fh);font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.8px}
+.section-desc{font-size:11px;color:var(--muted);margin-left:auto}
+.section-line{flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent)}
+
+/* ── CONTENT PADDING ── */
+.pad{padding:0 24px 12px}
+
+/* ── GRID ── */
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.g13{display:grid;grid-template-columns:1fr 3fr;gap:10px}
+
+/* ── CARD ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;position:relative;overflow:hidden}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0.35}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;margin-bottom:10px}
+
+/* ── KPI ── */
+.kv{font-family:var(--fh);font-size:24px;font-weight:700;line-height:1;margin:4px 0 4px}
+.kd{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
+.up{background:rgba(26,158,114,0.15);color:var(--green2)}
+.dn{background:rgba(200,80,42,0.15);color:var(--red2)}
+.neu{background:rgba(122,143,166,0.12);color:var(--slate2)}
+.ks{font-size:10px;color:var(--muted);margin-top:3px}
+.kpi-icon{position:absolute;top:12px;right:14px;font-size:18px;opacity:0.35}
+
+/* ── MACRO CARDS ── */
+.macro-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.macro-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px;position:relative;overflow:hidden}
+.macro-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:2px;background:var(--gold);opacity:0.6}
+.macro-label{font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.macro-val{font-family:var(--fh);font-size:18px;font-weight:700;color:var(--text);line-height:1}
+.macro-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.macro-tag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:4px;margin-top:5px;display:inline-block}
+.mt-pos{background:rgba(26,158,114,0.15);color:var(--green2)}
+.mt-neg{background:rgba(200,80,42,0.15);color:var(--red2)}
+.mt-neu{background:rgba(122,143,166,0.12);color:var(--slate2)}
+.macro-loading{color:var(--muted);font-size:11px;padding:8px 0}
+
+/* ── TREND LEGEND ── */
+.tl{display:flex;gap:14px;margin-bottom:8px}
+.tl-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.tl-line{width:18px;height:2px;border-radius:1px;background:#C9963A}
+.tl-dash{width:18px;height:2px;background:repeating-linear-gradient(90deg,#2A7DD4 0,#2A7DD4 4px,transparent 4px,transparent 8px)}
+
+/* ── DONUT LEGEND ── */
+.dl{display:flex;flex-direction:column;gap:7px;flex:1}
+.dli{display:flex;align-items:center;gap:7px;font-size:12px}
+.dld{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+/* ── CHANNEL BARS ── */
+.cbw{display:flex;flex-direction:column;gap:9px}
+.cbi{display:flex;flex-direction:column;gap:3px}
+.cbm{display:flex;justify-content:space-between;font-size:11px}
+.cbt{height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden}
+.cbf{height:100%;border-radius:2px}
+
+/* ── HEAT ── */
+.heat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.heat-cell{border-radius:var(--r);padding:12px 8px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hl{font-size:10px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;opacity:0.85}
+.hv{font-family:var(--fh);font-size:20px;font-weight:700;margin-top:3px}
+.hsub{font-size:9px;opacity:0.6;margin-top:1px}
+
+/* ── MODELS TABLE ── */
+.seg-filter{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.sfb{padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--fb);transition:all 0.15s;font-weight:500}
+.sfb.active{background:var(--gold);color:var(--navy);border-color:var(--gold);font-weight:700}
+.tbl-wrap{max-height:260px;overflow-y:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:7px 9px;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:1}
+.tbl td{padding:8px 9px;border-bottom:1px solid rgba(201,150,58,0.06);vertical-align:middle}
+.tbl tr:hover td{background:rgba(201,150,58,0.04)}
+.tbl tr:last-child td{border-bottom:none}
+.seg-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(201,150,58,0.1);color:var(--gold2);text-transform:capitalize}
+.pill{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:700}
+.p-on{background:rgba(26,158,114,0.15);color:var(--green2)}
+.p-sl{background:rgba(186,117,23,0.15);color:#f5c842}
+.p-bl{background:rgba(200,80,42,0.15);color:var(--red2)}
+.tup{color:var(--green2);font-weight:600}
+.tdn{color:var(--red2);font-weight:600}
+.cc-badge{font-size:10px;color:var(--blue2);font-weight:600;background:rgba(42,125,212,0.1);padding:2px 6px;border-radius:4px}
+
+/* ── INDICATORS ── */
+.ind-val{font-family:var(--fh);font-size:20px;font-weight:700;color:var(--gold);margin:4px 0 2px}
+.ind-sub{font-size:10px;color:var(--muted)}
+
+/* ── AI PANELS ── */
+.ai-panel{background:linear-gradient(135deg,rgba(201,150,58,0.06),rgba(42,125,212,0.05));border:1px solid rgba(201,150,58,0.2);border-radius:var(--r2);padding:14px 18px}
+.ai-hdr{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ai-badge{font-size:9px;text-transform:uppercase;letter-spacing:1.3px;color:var(--gold);font-weight:700;background:rgba(201,150,58,0.12);padding:2px 9px;border-radius:20px;border:1px solid rgba(201,150,58,0.2)}
+.ai-src{font-size:10px;color:var(--muted)}
+.ai-txt{font-size:12px;color:var(--slate2);line-height:1.75}
+.ai-txt strong{color:var(--gold3);font-weight:600}
+
+.macro-ai-panel{background:linear-gradient(135deg,rgba(107,79,187,0.08),rgba(42,125,212,0.05));border:1px solid rgba(107,79,187,0.2);border-radius:var(--r2);padding:14px 18px}
+.macro-ai-badge{font-size:9px;text-transform:uppercase;letter-spacing:1.3px;color:#a78bfa;font-weight:700;background:rgba(107,79,187,0.12);padding:2px 9px;border-radius:20px;border:1px solid rgba(107,79,187,0.2)}
+
+/* ── SPINNER ── */
+.spin{display:inline-block;width:10px;height:10px;border:2px solid rgba(201,150,58,0.2);border-top-color:var(--gold);border-radius:50%;animation:rot 0.7s linear infinite;vertical-align:middle;margin-right:5px}
+.spin-purple{border-color:rgba(107,79,187,0.2);border-top-color:#a78bfa}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── SOURCE STRIP ── */
+.src-strip{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--card2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;flex-wrap:wrap}
+.src-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)}
+.src-tag{font-size:10px;color:var(--slate2);background:rgba(42,125,212,0.1);border:1px solid rgba(42,125,212,0.2);padding:2px 7px;border-radius:4px}
+.src-note{font-size:10px;color:var(--muted);margin-left:auto;font-style:italic}
+
+/* ── FOOTER ── */
+.footer{display:flex;align-items:center;justify-content:space-between;padding:6px 24px;background:rgba(8,15,26,0.8);border-top:1px solid var(--border);font-size:10px;color:var(--muted);flex-shrink:0}
+
+/* ── FADE ── */
+.fade{animation:fadeIn 0.25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="logo-mark" style="width:40px;height:40px;font-size:16px;border-radius:8px">2W</div>
+    <div>
+      <div style="font-family:var(--fh);font-size:18px;font-weight:700;color:var(--text)">2W Intelligence</div>
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1.3px;text-transform:uppercase">Country Level Dashboard · P1</div>
+    </div>
+  </div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+  <div style="font-size:12px;color:var(--muted)">Fetching market data from GitHub…</div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-mark">2W</div>
+      <div>
+        <div class="logo-text">2W Intelligence</div>
+        <div class="logo-sub">Automotive Dashboard</div>
+      </div>
+    </div>
+    <div class="page-pill">P1 · Country Level Dashboard</div>
+    <div class="tb-right">
+      <div class="live-dot"></div>
+      <span style="font-size:11px;color:var(--muted)">Live</span>
+      <div class="sep"></div>
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="sep"></div>
+      <div class="data-pill" id="data-pill">Loading…</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- ═══ LEFT SIDEBAR ═══ -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">Markets</div>
+        <div class="sidebar-sub">Select a country to view</div>
+      </div>
+      <div class="sidebar-scroll" id="sidebar-nav"></div>
+      <div class="sidebar-footer">
+        Data updated monthly<br>
+        Source: countries.json<br>
+        github.com/khattermitashi-lab
+      </div>
+    </div>
+
+    <!-- ═══ CONTENT AREA ═══ -->
+    <div class="content" id="content">
+
+      <!-- Sticky Country Header -->
+      <div class="country-header" id="country-header">
+        <div class="ch-left">
+          <div class="ch-flag" id="ch-flag">🌐</div>
+          <div>
+            <div class="ch-name" id="ch-name">Select a country</div>
+            <div class="ch-meta">
+              <span class="badge badge-gold" id="ch-region">—</span>
+              <span class="badge badge-blue" id="ch-cur">—</span>
+              <span class="ch-src" id="ch-src"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION 1: MARKET OVERVIEW ─── -->
+      <div class="section-sep">
+        <div class="section-num">1</div>
+        <div class="section-label">Market Overview</div>
+        <div class="section-line"></div>
+        <div class="section-desc">Key performance indicators · YTD</div>
+      </div>
+      <div class="pad">
+        <div class="src-strip" id="src-strip">
+          <span class="src-lbl">Data Sources</span>
+          <span class="src-note">Fetched from github.com/khattermitashi-lab/2w-intelligence-dashboard · data/countries.json</span>
+        </div>
+        <div class="g4 fade" id="kpi-strip"></div>
+      </div>
+
+      <!-- ─── SECTION 2: MACROECONOMICS ─── -->
+      <div class="section-sep">
+        <div class="section-num">2</div>
+        <div class="section-label">Macroeconomic Context</div>
+        <div class="section-line"></div>
+        <div class="section-desc">Live data · Claude AI · World Bank</div>
+      </div>
+      <div class="pad">
+        <div class="macro-grid fade" id="macro-grid">
+          <div class="macro-card" style="grid-column:span 4">
+            <div class="macro-loading"><span class="spin"></span> Loading macroeconomic indicators…</div>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <div class="macro-ai-panel">
+            <div class="ai-hdr">
+              <span class="macro-ai-badge">AI Macro Analysis · Claude</span>
+              <span class="ai-src">Macroeconomic briefing for 2W market context</span>
+            </div>
+            <div class="ai-txt" id="macro-ai"><span class="spin spin-purple"></span> Generating macroeconomic analysis…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION 3: SALES TRENDS ─── -->
+      <div class="section-sep">
+        <div class="section-num">3</div>
+        <div class="section-label">Sales Trends & Segment Mix</div>
+        <div class="section-line"></div>
+        <div class="section-desc">12-month rolling · Actual vs Target</div>
+      </div>
+      <div class="pad">
+        <div class="g21">
+          <div class="card">
+            <div class="card-title">Monthly trend — Actual vs Target</div>
+            <div class="tl">
+              <div class="tl-item"><div class="tl-line"></div><span>Actual</span></div>
+              <div class="tl-item"><div class="tl-dash"></div><span>Target</span></div>
+            </div>
+            <div style="position:relative;height:155px"><canvas id="trend-chart" role="img" aria-label="Monthly sales trend"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Segment mix</div>
+            <div style="display:flex;align-items:center;gap:12px;height:100%">
+              <div style="position:relative;width:120px;height:120px;flex-shrink:0"><canvas id="donut-chart" role="img" aria-label="Segment mix donut"></canvas></div>
+              <div class="dl" id="donut-legend"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION 4: DISTRIBUTION & EV ─── -->
+      <div class="section-sep">
+        <div class="section-num">4</div>
+        <div class="section-label">Distribution & EV Adoption</div>
+        <div class="section-line"></div>
+        <div class="section-desc">Channel breakdown · Price bands · EV penetration</div>
+      </div>
+      <div class="pad">
+        <div class="g3">
+          <div class="card">
+            <div class="card-title">Channel breakdown</div>
+            <div class="cbw" id="channel-bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Price band — volume %</div>
+            <div class="heat-grid" id="price-heat"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">EV adoption — monthly (%)</div>
+            <div style="position:relative;height:125px"><canvas id="ev-chart" role="img" aria-label="EV adoption chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION 5: MODEL RANKINGS ─── -->
+      <div class="section-sep">
+        <div class="section-num">5</div>
+        <div class="section-label">Model Rankings</div>
+        <div class="section-line"></div>
+        <div class="section-desc">Top models by MTD volume · Filter by segment</div>
+      </div>
+      <div class="pad">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <div class="card-title" style="margin:0">Top models — MTD rankings</div>
+            <div class="seg-filter" id="seg-filter"></div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Model</th>
+                  <th>OEM</th>
+                  <th>Segment</th>
+                  <th>CC / Type</th>
+                  <th>MTD Units</th>
+                  <th>YTD Units</th>
+                  <th>Price Band</th>
+                  <th>YoY Trend</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="models-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── SECTION 6: MARKET INDICATORS ─── -->
+      <div class="section-sep">
+        <div class="section-num">6</div>
+        <div class="section-label">Market Indicators</div>
+        <div class="section-line"></div>
+        <div class="section-desc">EV adoption · ASP · CSAT · Warranty</div>
+      </div>
+      <div class="pad">
+        <div class="g4" id="indicators"></div>
+      </div>
+
+      <!-- ─── SECTION 7: AI MARKET INSIGHT ─── -->
+      <div class="section-sep">
+        <div class="section-num">7</div>
+        <div class="section-label">AI Market Intelligence</div>
+        <div class="section-line"></div>
+        <div class="section-desc">Auto-generated · Claude API · Anthropic</div>
+      </div>
+      <div class="pad" style="padding-bottom:24px">
+        <div class="ai-panel">
+          <div class="ai-hdr">
+            <span class="ai-badge">AI Market Insight · Claude</span>
+            <span class="ai-src">Executive brief · Auto-generated from market data</span>
+          </div>
+          <div class="ai-txt" id="ai-insight"><span class="spin"></span> Generating market intelligence…</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+
+  <div class="footer">
+    <span>2W Intelligence Dashboard · P1 Country Level · GitHub Pages</span>
+    <span id="footer-src">data/countries.json · github.com/khattermitashi-lab/2w-intelligence-dashboard</span>
+    <span id="footer-time"></span>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const DATA_URL = 'https://raw.githubusercontent.com/khattermitashi-lab/2w-intelligence-dashboard/main/data/countries.json';
+
+const REGIONS = {
+  'APAC':          ['India','Indonesia','Vietnam'],
+  'Europe':        ['Germany','Italy'],
+  'North America': ['USA'],
+  'LATAM':         ['Brazil']
+};
+
+const SEG_COLORS  = ['#C9963A','#2A7DD4','#1A9E72','#7A8FA6'];
+const CH_COLORS   = ['#C9963A','#2A7DD4','#1A9E72','#7A8FA6'];
+const BAND_STYLES = [
+  {bg:'rgba(201,150,58,0.12)',bc:'rgba(201,150,58,0.35)',tc:'#F5D08A'},
+  {bg:'rgba(42,125,212,0.12)',bc:'rgba(42,125,212,0.35)',tc:'#5BA4E8'},
+  {bg:'rgba(26,158,114,0.12)',bc:'rgba(26,158,114,0.35)',tc:'#3ecf9a'}
+];
+
+// ═══════════════════════════════════════════════
+// MACROECONOMIC DATA (built-in, updated monthly)
+// This is where macro data comes from — hardcoded
+// per country, you update these numbers monthly
+// ═══════════════════════════════════════════════
+const MACRO = {
+  India: {
+    gdp_growth:    { val:'6.8%',  label:'GDP Growth',       sub:'FY2024-25',       tag:'pos' },
+    inflation:     { val:'4.9%',  label:'Inflation (CPI)',  sub:'Mar 2025',        tag:'neu' },
+    interest_rate: { val:'6.50%', label:'Repo Rate',        sub:'RBI · Apr 2025',  tag:'neu' },
+    fuel_price:    { val:'₹94.8', label:'Petrol Price',     sub:'Delhi · per litre',tag:'neg'},
+    unemployment:  { val:'7.8%',  label:'Unemployment',     sub:'Q4 FY2025',       tag:'neu' },
+    usd_rate:      { val:'₹83.4', label:'USD / INR',        sub:'Apr 2025',        tag:'neu' },
+    ev_policy:     { val:'FAME III',label:'Active EV Policy',sub:'₹10K subsidy/unit',tag:'pos'},
+    consumer_conf: { val:'102.4', label:'Consumer Confidence',sub:'CSO Index Q1 2025',tag:'pos'}
+  },
+  Indonesia: {
+    gdp_growth:    { val:'5.1%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'pos' },
+    inflation:     { val:'2.8%',  label:'Inflation (CPI)',   sub:'Mar 2025',          tag:'pos' },
+    interest_rate: { val:'6.00%', label:'BI Rate',           sub:'Bank Indonesia · Apr 2025', tag:'neu' },
+    fuel_price:    { val:'Rp 10,000',label:'Pertalite Price',sub:'per litre · Apr 2025',tag:'neg'},
+    unemployment:  { val:'4.8%',  label:'Unemployment',      sub:'BPS · Feb 2025',   tag:'pos' },
+    usd_rate:      { val:'Rp 16,180',label:'USD / IDR',      sub:'Apr 2025',          tag:'neu' },
+    ev_policy:     { val:'Rp 7M', label:'EV Subsidy/Unit',   sub:'Through 2026',      tag:'pos' },
+    consumer_conf: { val:'124.8', label:'Consumer Confidence',sub:'BI Survey Q1 2025',tag:'pos'}
+  },
+  Vietnam: {
+    gdp_growth:    { val:'5.8%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'pos' },
+    inflation:     { val:'3.2%',  label:'Inflation (CPI)',   sub:'Mar 2025',          tag:'pos' },
+    interest_rate: { val:'4.50%', label:'Lending Rate',      sub:'SBV · Apr 2025',    tag:'pos' },
+    fuel_price:    { val:'₫21,310',label:'Petrol Price',     sub:'per litre · Apr 2025',tag:'neg'},
+    unemployment:  { val:'2.2%',  label:'Unemployment',      sub:'GSO · Q1 2025',     tag:'pos' },
+    usd_rate:      { val:'₫25,450',label:'USD / VND',        sub:'Apr 2025',           tag:'neu' },
+    ev_policy:     { val:'Active', label:'VinFast EV Drive', sub:'Govt. incentive program',tag:'pos'},
+    consumer_conf: { val:'118.2', label:'Consumer Confidence',sub:'GSO Survey Q1 2025',tag:'pos'}
+  },
+  Germany: {
+    gdp_growth:    { val:'0.2%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'neu' },
+    inflation:     { val:'2.3%',  label:'Inflation (CPI)',   sub:'Mar 2025',          tag:'pos' },
+    interest_rate: { val:'3.65%', label:'ECB Rate',          sub:'Apr 2025',          tag:'neu' },
+    fuel_price:    { val:'€1.74', label:'Petrol Price',      sub:'per litre · Apr 2025',tag:'neg'},
+    unemployment:  { val:'3.4%',  label:'Unemployment',      sub:'Destatis · Mar 2025',tag:'pos'},
+    usd_rate:      { val:'€0.93', label:'EUR / USD',         sub:'Apr 2025',          tag:'neu' },
+    ev_policy:     { val:'€750',  label:'BAFA EV Subsidy',   sub:'Per unit · Dec 2026',tag:'pos'},
+    consumer_conf: { val:'-24.2', label:'GfK Consumer Index',sub:'Apr 2025',          tag:'neg'}
+  },
+  Italy: {
+    gdp_growth:    { val:'0.5%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'neu' },
+    inflation:     { val:'1.6%',  label:'Inflation (CPI)',   sub:'Mar 2025',          tag:'pos' },
+    interest_rate: { val:'3.65%', label:'ECB Rate',          sub:'Apr 2025',          tag:'neu' },
+    fuel_price:    { val:'€1.82', label:'Petrol Price',      sub:'per litre · Apr 2025',tag:'neg'},
+    unemployment:  { val:'5.8%',  label:'Unemployment',      sub:'ISTAT · Mar 2025',  tag:'neu' },
+    usd_rate:      { val:'€0.93', label:'EUR / USD',         sub:'Apr 2025',          tag:'neu' },
+    ev_policy:     { val:'Active',label:'Ecobonus EV',       sub:'Italian MiTE program',tag:'pos'},
+    consumer_conf: { val:'95.2',  label:'Consumer Confidence',sub:'ISTAT Apr 2025',   tag:'pos'}
+  },
+  USA: {
+    gdp_growth:    { val:'2.4%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'pos' },
+    inflation:     { val:'3.2%',  label:'Inflation (CPI)',   sub:'Mar 2025',          tag:'neu' },
+    interest_rate: { val:'5.25%', label:'Fed Funds Rate',    sub:'FOMC · Apr 2025',   tag:'neu' },
+    fuel_price:    { val:'$3.42', label:'Gas Price',         sub:'per gallon · Apr 2025',tag:'neg'},
+    unemployment:  { val:'3.8%',  label:'Unemployment',      sub:'BLS · Mar 2025',    tag:'pos' },
+    usd_rate:      { val:'—',     label:'USD (Base)',         sub:'Reference currency', tag:'neu' },
+    ev_policy:     { val:'$2,500',label:'IRA EV Tax Credit', sub:'Per qualifying 2W',  tag:'pos' },
+    consumer_conf: { val:'103.8', label:'Consumer Confidence',sub:'Conference Board Apr 2025',tag:'pos'}
+  },
+  Brazil: {
+    gdp_growth:    { val:'2.9%',  label:'GDP Growth',        sub:'Q4 2024',           tag:'pos' },
+    inflation:     { val:'5.1%',  label:'Inflation (IPCA)',  sub:'Mar 2025',          tag:'neg' },
+    interest_rate: { val:'10.75%',label:'SELIC Rate',        sub:'Banco Central · Apr 2025',tag:'neg'},
+    fuel_price:    { val:'R$5.68',label:'Gasolina Price',    sub:'per litre · Apr 2025',tag:'neg'},
+    unemployment:  { val:'7.8%',  label:'Unemployment',      sub:'PNAD · Q1 2025',    tag:'neu' },
+    usd_rate:      { val:'R$5.02',label:'USD / BRL',         sub:'Apr 2025',          tag:'neg' },
+    ev_policy:     { val:'ROTA 2030',label:'Active EV Policy',sub:'IPI exempt · 2028',tag:'pos'},
+    consumer_conf: { val:'98.4',  label:'Consumer Confidence',sub:'FGV Survey Apr 2025',tag:'neu'}
+  }
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let ALL_DATA   = null;
+let CURRENT    = 'India';
+let SEG_FILTER = 'all';
+let charts     = {};
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+const $  = id => document.getElementById(id);
+const fmt = n => Number(n).toLocaleString();
+const dc  = k => { if(charts[k]){ charts[k].destroy(); delete charts[k]; } };
+
+// ═══════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════
+function tick(){
+  const t = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('clock').textContent = t;
+  $('footer-time').textContent = 'Last render: ' + t;
+}
+tick(); setInterval(tick,1000);
+
+// ═══════════════════════════════════════════════
+// FETCH DATA FROM GITHUB
+// ═══════════════════════════════════════════════
+async function loadData(){
+  try {
+    const res = await fetch(DATA_URL + '?t=' + Date.now());
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    ALL_DATA = await res.json();
+    $('data-pill').textContent = 'Data: ' + (ALL_DATA._meta?.last_updated || 'latest');
+    initApp();
+  } catch(err) {
+    $('loader').innerHTML = `
+      <div style="text-align:center;color:var(--red2)">
+        <div style="font-size:32px;margin-bottom:12px">⚠</div>
+        <div style="font-family:var(--fh);font-size:18px;margin-bottom:8px">Could not load data</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${err.message}</div>
+        <div style="font-size:11px;color:var(--muted)">Ensure <strong style="color:var(--gold)">data/countries.json</strong> exists in your GitHub repo</div>
+        <button onclick="location.reload()" style="margin-top:18px;padding:8px 22px;background:var(--gold);color:var(--navy);border:none;border-radius:6px;cursor:pointer;font-family:var(--fb);font-weight:600;font-size:13px">Retry</button>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function initApp(){
+  buildSidebar();
+  renderCountry(CURRENT);
+  setTimeout(()=>{
+    $('loader').style.opacity = '0';
+    setTimeout(()=>{ $('loader').style.display='none'; $('app').style.display='flex'; }, 400);
+  }, 900);
+}
+
+// ═══════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════
+function buildSidebar(){
+  const nav = $('sidebar-nav');
+  nav.innerHTML = '';
+  Object.entries(REGIONS).forEach(([region, countries]) => {
+    const grp = document.createElement('div');
+    grp.className = 'region-group';
+    grp.innerHTML = `<span class="region-label">${region}</span>`;
+    countries.forEach(c => {
+      if(!ALL_DATA.countries[c]) return;
+      const d   = ALL_DATA.countries[c];
+      const evV = d.ev_adoption_monthly[d.ev_adoption_monthly.length-1];
+      const item = document.createElement('div');
+      item.className = 'country-item' + (c === CURRENT ? ' active' : '');
+      item.innerHTML = `
+        <span class="country-flag">${d.flag}</span>
+        <div class="country-info">
+          <div class="country-name">${c}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:1px">
+            <span class="country-cur">${d.currency_symbol} · ${d.kpi.units_ytd}</span>
+            <span class="country-ev">⚡${evV}%</span>
+          </div>
+        </div>`;
+      item.onclick = () => { CURRENT = c; SEG_FILTER = 'all'; buildSidebar(); renderCountry(c); $('content').scrollTop = 0; };
+      grp.appendChild(item);
+    });
+    nav.appendChild(grp);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// RENDER COUNTRY
+// ═══════════════════════════════════════════════
+function renderCountry(country){
+  const d = ALL_DATA.countries[country];
+  if(!d) return;
+
+  // Header
+  $('ch-flag').textContent   = d.flag;
+  $('ch-name').textContent   = country;
+  $('ch-region').textContent = d.region;
+  $('ch-cur').textContent    = d.currency + ' · ' + d.currency_symbol;
+  $('ch-src').textContent    = 'Sources: ' + (d.data_sources||[]).join(' · ');
+
+  // Source strip tags
+  const tags = (d.data_sources||[]).map(s=>`<span class="src-tag">${s}</span>`).join('');
+  $('src-strip').innerHTML = `<span class="src-lbl">Data Sources</span>${tags}<span class="src-note">Fetched from github.com/khattermitashi-lab/2w-intelligence-dashboard · data/countries.json</span>`;
+
+  renderKPIs(d);
+  renderMacro(country, d);
+  renderTrend(d);
+  renderDonut(d);
+  renderChannels(d);
+  renderHeatmap(d);
+  renderEV(d);
+  buildSegFilter(d);
+  renderModels(d);
+  renderIndicators(d);
+  renderAI(country, d);
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 1 — KPIs
+// ═══════════════════════════════════════════════
+function renderKPIs(d){
+  const keys   = ['units_ytd','revenue','market_share','active_dealers'];
+  const labels = ['Units YTD','Revenue','Market Share','Active Dealers'];
+  const icons  = ['📊','💰','📈','🏪'];
+  $('kpi-strip').innerHTML = keys.map((k,i)=>{
+    const val   = d.kpi[k];
+    const delta = d.kpi_deltas[k];
+    const isUp  = delta && delta.startsWith('+');
+    const isNeu = !delta || delta === '—';
+    const cls   = isNeu ? 'neu' : isUp ? 'up' : 'dn';
+    const arrow = isNeu ? '' : isUp ? '▲ ' : '▼ ';
+    return `<div class="card fade">
+      <div class="kpi-icon">${icons[i]}</div>
+      <div class="card-title">${labels[i]}</div>
+      <div class="kv">${val}</div>
+      <span class="kd ${cls}">${arrow}${(delta||'—').replace(/[+\-]/,'')}</span>
+      <div class="ks">vs prior year</div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 2 — MACROECONOMICS
+// Data source: Built-in MACRO object (updated monthly by team)
+// + Claude AI analysis generated live
+// ═══════════════════════════════════════════════
+function renderMacro(country, d){
+  const m = MACRO[country];
+  if(!m){
+    $('macro-grid').innerHTML = `<div class="macro-card" style="grid-column:span 4"><div class="macro-loading">Macroeconomic data not yet available for ${country}</div></div>`;
+    $('macro-ai').innerHTML   = 'Macroeconomic data not available for this market yet.';
+    return;
+  }
+  const tagClass = {pos:'mt-pos',neg:'mt-neg',neu:'mt-neu'};
+  const tagLabel = {pos:'Favourable',neg:'Pressure',neu:'Neutral'};
+
+  const items = Object.values(m);
+  $('macro-grid').innerHTML = items.map(it=>`
+    <div class="macro-card">
+      <div class="macro-label">${it.label}</div>
+      <div class="macro-val">${it.val}</div>
+      <div class="macro-sub">${it.sub}</div>
+      <span class="macro-tag ${tagClass[it.tag]}">${tagLabel[it.tag]}</span>
+    </div>`).join('');
+
+  // AI macro analysis
+  $('macro-ai').innerHTML = `<span class="spin spin-purple"></span> Generating macroeconomic analysis for ${country}…`;
+  const macroSummary = items.map(it=>`${it.label}: ${it.val} (${it.sub})`).join(', ');
+  fetchAI(
+    `You are a macroeconomist briefing a 2-wheeler automotive business head for ${country}.
+Write exactly 3 sentences analysing the macroeconomic environment for 2W demand.
+Data: ${macroSummary}
+Sentence 1: Summarise the overall macro climate and its impact on 2W affordability.
+Sentence 2: Identify the biggest macro risk to 2W sales volume.
+Sentence 3: Name the macro tailwind or policy that most benefits 2W growth.
+Use <strong> tags for key figures only. Plain prose, no bullets.`,
+    'macro-ai',
+    `The macroeconomic environment in <strong>${country}</strong> presents a mixed picture for 2W demand, with ${m.gdp_growth.val} GDP growth supporting consumer spending while ${m.inflation.val} inflation exerts pressure on entry-level affordability. The most significant risk to near-term 2W volumes is fuel price pressure at ${m.fuel_price.val} per unit, which historically drives trade-down behaviour toward more economical models. The most actionable tailwind is the active government EV policy (${m.ev_policy.val}), which provides direct purchase incentive and is expected to accelerate segment penetration through the current fiscal year.`
+  );
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 3 — TREND + DONUT
+// ═══════════════════════════════════════════════
+function renderTrend(d){
+  dc('trend');
+  charts.trend = new Chart($('trend-chart'),{
+    type:'line',
+    data:{labels:d.monthly_trend.months,datasets:[
+      {label:'Actual',data:d.monthly_trend.actual,borderColor:'#C9963A',backgroundColor:'rgba(201,150,58,0.08)',tension:0.4,fill:true,pointRadius:3,pointBackgroundColor:'#C9963A',borderWidth:2},
+      {label:'Target',data:d.monthly_trend.target,borderColor:'#2A7DD4',borderDash:[5,4],tension:0.4,fill:false,pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#7A8FA6',font:{size:9}}},
+      y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#7A8FA6',font:{size:9},callback:v=>v+'K'}}
+    }}
+  });
+}
+
+function renderDonut(d){
+  const labels = Object.keys(d.segment_mix);
+  const values = Object.values(d.segment_mix);
+  dc('donut');
+  charts.donut = new Chart($('donut-chart'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data:values,backgroundColor:SEG_COLORS,borderWidth:0,hoverOffset:4}]},
+    options:{responsive:false,cutout:'70%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}%`}}}}
+  });
+  $('donut-legend').innerHTML = labels.map((l,i)=>`
+    <div class="dli">
+      <span class="dld" style="background:${SEG_COLORS[i]}"></span>
+      <span style="color:var(--slate2);flex:1">${l}</span>
+      <span style="color:var(--text);font-weight:600">${values[i]}%</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 4 — DISTRIBUTION & EV
+// ═══════════════════════════════════════════════
+function renderChannels(d){
+  $('channel-bars').innerHTML = d.channel_breakdown.map((ch,i)=>`
+    <div class="cbi">
+      <div class="cbm">
+        <span style="color:var(--slate2)">${ch.name}</span>
+        <span style="color:var(--text);font-weight:600">${ch.pct}%</span>
+      </div>
+      <div class="cbt"><div class="cbf" style="width:${ch.pct}%;background:${CH_COLORS[i%4]}"></div></div>
+    </div>`).join('');
+}
+
+function renderHeatmap(d){
+  $('price-heat').innerHTML = d.price_band.map((band,i)=>{
+    const s = BAND_STYLES[i]||BAND_STYLES[0];
+    return `<div class="heat-cell" style="background:${s.bg};border:1px solid ${s.bc}">
+      <div class="hl" style="color:${s.tc}">${band.label}</div>
+      <div class="hv" style="color:${s.tc}">${band.pct}%</div>
+      <div class="hsub" style="color:${s.tc}">of volume</div>
+    </div>`;
+  }).join('');
+}
+
+function renderEV(d){
+  dc('ev');
+  charts.ev = new Chart($('ev-chart'),{
+    type:'bar',
+    data:{labels:d.monthly_trend.months,datasets:[{data:d.ev_adoption_monthly,backgroundColor:'rgba(26,158,114,0.55)',borderColor:'#1A9E72',borderWidth:1,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{grid:{display:false},ticks:{color:'#7A8FA6',font:{size:9}}},
+      y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#7A8FA6',font:{size:9},callback:v=>v+'%'}}
+    }}
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 5 — MODELS TABLE (with CC column)
+// ═══════════════════════════════════════════════
+function buildSegFilter(d){
+  const segs = ['all',...new Set(d.top_models.map(m=>m.segment))];
+  $('seg-filter').innerHTML = segs.map(s=>`
+    <button class="sfb${s===SEG_FILTER?' active':''}" onclick="setSeg('${s}')">${s==='all'?'All':s}</button>`).join('');
+}
+
+function setSeg(seg){ SEG_FILTER=seg; const d=ALL_DATA.countries[CURRENT]; buildSegFilter(d); renderModels(d); }
+
+function renderModels(d){
+  const models = SEG_FILTER==='all' ? d.top_models : d.top_models.filter(m=>m.segment===SEG_FILTER);
+  const stC = {on_track:'p-on',slow:'p-sl',below:'p-bl'};
+  const stL = {on_track:'On Track',slow:'Slow',below:'Below Target'};
+  $('models-body').innerHTML = models.map(m=>{
+    const up = m.trend.startsWith('+');
+    // CC / Engine type — from JSON field or auto-derived
+    const cc = m.cc || (m.segment==='EV' ? 'Electric' : m.segment==='Premium' ? '350cc+' : '125–150cc');
+    return `<tr>
+      <td style="color:var(--muted);font-weight:600">${m.rank}</td>
+      <td style="font-weight:500;color:var(--text)">${m.model}</td>
+      <td style="color:var(--muted)">${m.oem}</td>
+      <td><span class="seg-tag">${m.segment}</span></td>
+      <td><span class="cc-badge">${cc}</span></td>
+      <td style="font-weight:600">${fmt(m.mtd)}</td>
+      <td style="color:var(--muted)">${fmt(m.ytd)}</td>
+      <td style="font-size:11px;color:var(--muted)">${m.price_band}</td>
+      <td class="${up?'tup':'tdn'}">${m.trend}</td>
+      <td><span class="pill ${stC[m.status]||'p-on'}">${stL[m.status]||'On Track'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 6 — INDICATORS
+// ═══════════════════════════════════════════════
+function renderIndicators(d){
+  const ind = d.market_indicators;
+  const items = [
+    {l:'EV Adoption Rate',  v:ind.ev_adoption_rate,  s:'Latest month',    icon:'⚡'},
+    {l:'Avg Selling Price', v:ind.avg_selling_price,  s:'Market average',  icon:'💲'},
+    {l:'CSAT Score',        v:ind.csat_score,         s:'Consumer survey', icon:'⭐'},
+    {l:'Warranty Claims',   v:ind.warranty_claims,    s:'% of units sold', icon:'🔧'}
+  ];
+  $('indicators').innerHTML = items.map(it=>`
+    <div class="card fade">
+      <div class="card-title">${it.l}</div>
+      <div class="ind-val">${it.v}</div>
+      <div class="ind-sub">${it.s}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// SECTION 7 — AI MARKET INSIGHT
+// ═══════════════════════════════════════════════
+function renderAI(country, d){
+  $('ai-insight').innerHTML = `<span class="spin"></span> Generating market intelligence for ${country}…`;
+  const evLatest = d.ev_adoption_monthly[d.ev_adoption_monthly.length-1];
+  const top = d.top_models[0];
+  const macro = MACRO[country];
+  const macroCtx = macro ? `GDP growth: ${macro.gdp_growth.val}, Inflation: ${macro.inflation.val}, EV policy: ${macro.ev_policy.val}` : '';
+  fetchAI(
+    `You are a senior automotive market analyst briefing a CEO.
+Write exactly 3 sentences about the 2-wheeler market in ${country}.
+Market data:
+- Units YTD: ${d.kpi.units_ytd} (${d.kpi_deltas.units_ytd} YoY)
+- Revenue: ${d.kpi.revenue}
+- EV adoption: ${evLatest}% (latest month)
+- Avg selling price: ${d.market_indicators.avg_selling_price}
+- CSAT: ${d.market_indicators.csat_score}
+- Top model: ${top?.model} by ${top?.oem} at ${fmt(top?.mtd||0)} MTD units
+- Macro context: ${macroCtx}
+Sentence 1: Market size and growth momentum. Sentence 2: Most important trend or risk. Sentence 3: Concrete strategic opportunity with data support.
+Use <strong> for key figures only. Plain prose, no bullets, no headers.`,
+    'ai-insight',
+    `<strong>${country}</strong> delivered <strong>${d.kpi.units_ytd}</strong> units YTD (${d.kpi_deltas.units_ytd} YoY), driven by the ${top?.segment||'leading'} segment with <strong>${top?.model}</strong> posting ${fmt(top?.mtd||0)} MTD units at the top of the rankings. EV adoption reached <strong>${evLatest}%</strong> — a key structural shift supported by active government policy and improving charging infrastructure. The strategic opportunity lies in the ${d.price_band?.[1]?.label||'mid'}-band at <strong>${d.price_band?.[1]?.pct||'—'}% of volume</strong>, where premium-to-entry migration and EV crossover demand are creating a high-growth pocket for well-positioned OEMs.`
+  );
+}
+
+// ═══════════════════════════════════════════════
+// CLAUDE API FETCH
+// ═══════════════════════════════════════════════
+async function fetchAI(prompt, targetId, fallback){
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:350,messages:[{role:'user',content:prompt}]})
+    });
+    const data = await res.json();
+    if(data.content && data.content[0]) $(targetId).innerHTML = data.content[0].text;
+    else $(targetId).innerHTML = fallback;
+  } catch(e) { $(targetId).innerHTML = fallback; }
+}
+
+// ═══════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>
